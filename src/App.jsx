@@ -13,7 +13,7 @@ import { AdminPanel } from "./components/AdminPanel";
 import { useWorks } from "./hooks/useWorks";
 
 const socialLinks = [
-  { name: "Facebook", href: "https://facebook.com", mark: "F" },
+  { name: "Facebook", href: "https://www.facebook.com/100085352232946", mark: "F" },
   { name: "X / Twitter", href: "https://x.com", mark: "X" },
   { name: "Instagram", href: "https://instagram.com", mark: "IG" },
   { name: "TikTok", href: "https://tiktok.com", mark: "TT" },
@@ -262,16 +262,16 @@ function App() {
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5">
                     <Mail className="h-4 w-4" />
                   </span>
-                  161@gmail.com
+                  sowkotmd161@gmail.com
                 </a>
                 <a
-                  href="tel:+8801700000000"
+                  href="tel:+8801761289761"
                   className="flex items-center gap-3 text-sm text-white/70 transition hover:text-fuchsia-300"
                 >
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5">
                     <Phone className="h-4 w-4" />
                   </span>
-                  +880 61
+                  +880 1761289761
                 </a>
               </div>
             </div>
