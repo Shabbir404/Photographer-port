@@ -1,6 +1,7 @@
 -- =============================================================================
 -- SECURE SETUP for a NEW Supabase project (run in SQL Editor)
--- Replace YOUR_ADMIN_EMAIL with the email you create in Authentication → Users
+-- Prerequisite: Authentication → disable public sign-ups; create ONE admin user.
+-- Writes are allowed for any authenticated user (only your admin can sign in).
 -- =============================================================================
 
 -- Table (use "projects" to match this app; skip if you already created it)
@@ -31,16 +32,16 @@ CREATE POLICY "public_select"
   TO anon, authenticated
   USING (true);
 
--- Only your admin account can write (set email below)
+-- Only signed-in users (your single admin if sign-ups are disabled)
 CREATE POLICY "admin_insert"
   ON projects FOR INSERT
   TO authenticated
-  WITH CHECK (auth.jwt() ->> 'email' = 'YOUR_ADMIN_EMAIL');
+  WITH CHECK (true);
 
 CREATE POLICY "admin_delete"
   ON projects FOR DELETE
   TO authenticated
-  USING (auth.jwt() ->> 'email' = 'YOUR_ADMIN_EMAIL');
+  USING (true);
 
 -- =============================================================================
 -- Storage bucket "works" — public read, admin-only write/delete
@@ -62,15 +63,9 @@ CREATE POLICY "public_read_works"
 CREATE POLICY "admin_upload_works"
   ON storage.objects FOR INSERT
   TO authenticated
-  WITH CHECK (
-    bucket_id = 'works'
-    AND auth.jwt() ->> 'email' = 'YOUR_ADMIN_EMAIL'
-  );
+  WITH CHECK (bucket_id = 'works');
 
 CREATE POLICY "admin_delete_works"
   ON storage.objects FOR DELETE
   TO authenticated
-  USING (
-    bucket_id = 'works'
-    AND auth.jwt() ->> 'email' = 'YOUR_ADMIN_EMAIL'
-  );
+  USING (bucket_id = 'works');

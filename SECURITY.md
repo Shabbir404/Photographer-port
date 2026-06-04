@@ -1,34 +1,72 @@
-# Security — why the site was hacked and how to fix it
+# Security — portfolio hardening
 
-## What went wrong
+## Honest answer: “100% hack proof”?
 
-1. **RLS allowed anonymous writes** — The old setup used policies like `FOR INSERT WITH CHECK (true)` for the `anon` role. Anyone can read your anon key from the built site and run `supabase.from('projects').insert(...)` in the browser console. **UI login did not protect the database.**
+No website on the public internet is mathematically unhackable. Your goal is **so hard that console script-kiddies and bots cannot touch your data** — which you now have, plus extra layers below.
 
-2. **Admin password in `VITE_*` env vars** — Vite bundles those into JavaScript. Anyone can open DevTools → Sources and search for your password.
+## What blocks attackers (server-side — cannot be bypassed from console)
 
-3. **Service role key in the frontend (if used)** — `VITE_SUPABASE_SERVICE_KEY` bypasses all RLS. Never put the service role key in any `VITE_` variable or client code.
+| Layer | What it does |
+|-------|----------------|
+| **RLS** | Anon key = read gallery only. No insert/upload/delete. |
+| **Supabase Auth** | Writes need your JWT after email + password. |
+| **Sign-ups off** | Nobody can create a second account. |
+| **Optional UUID policies** | `harden-by-user-id.sql` — only your user id can write, even if a second account existed. |
 
-## Secure model (what this repo uses now)
+Console tests you passed (401 / RLS on insert & upload) = **this layer is working**.
 
-| Action | Who can do it |
-|--------|----------------|
-| View gallery | Everyone (anon `SELECT`) |
-| Upload / delete | Only a signed-in Supabase Auth user whose email matches RLS |
-| Console without login | **Read only** — writes are rejected by Postgres |
+## What blocks attackers (client-side — reduces noise, not a vault)
 
-## New project checklist
+| Layer | What it does |
+|-------|----------------|
+| **Hidden admin UI** | No “Admin” button on the public site. |
+| **Unlock** | 5× click footer copyright **or** `/?gate=SECRET` (if `VITE_ADMIN_GATE_SECRET` set). |
+| **Netlify headers** | `netlify.toml` — anti-clickjacking, nosniff, etc. |
 
-1. Create a **new** Supabase project (recommended after a compromise).
-2. **Authentication → Providers → Email** — disable public sign-ups.
-3. **Authentication → Users** — add one admin user (strong password).
-4. **SQL Editor** — run `supabase/secure-setup.sql` and replace `YOUR_ADMIN_EMAIL` with that user's email (both table and storage policies).
-5. Create storage bucket `works` (public read).
-6. `.env` — only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-7. **Rotate keys** on the old project, then delete the old project when done.
-8. Remove `VITE_ADMIN_USERNAME`, `VITE_ADMIN_PASSWORD`, and `VITE_SUPABASE_SERVICE_KEY` from hosting env vars (Vercel/Netlify).
+A determined person can still find login in the JS bundle. They **still cannot upload** without your Supabase password.
 
-## After migrating
+## “Challenge to hack” checklist (do all of these)
 
-- Delete spam rows in `projects` and junk files in the `works` bucket.
-- Revoke the old anon key if the project still exists.
-- Never commit `.env`.
+### Supabase Dashboard (5 min)
+
+1. **Authentication → Providers → Email** — sign-ups **disabled**.
+2. **Authentication → Users** — exactly **one** admin; password 16+ chars, unique, not reused.
+3. **Authentication → Attack Protection** — enable **Leaked password protection** (if on your plan).
+4. **Authentication → MFA** — enable for your admin user (best upgrade).
+5. **SQL** — policies from `fix-rls-policies.sql` already applied.
+6. **Optional** — run `harden-by-user-id.sql` with your user UUID (belt + suspenders).
+7. **Settings → API** — never expose **service_role** in frontend or Netlify `VITE_*`.
+
+### Netlify
+
+1. Env vars: **only** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+2. Optional: `VITE_ADMIN_GATE_SECRET` = long random string (e.g. `openssl rand -hex 32`).
+3. Redeploy after any env change.
+
+### Your machine
+
+1. `.env` in `.gitignore` — never commit.
+2. Delete spam rows/files in Supabase if any remain.
+3. Delete the **old** compromised Supabase project when finished.
+
+## How you open admin (after deploy)
+
+1. **5 quick clicks** on “© … All rights reserved” in the footer → **Sign in** appears.
+2. Or visit `https://yoursite.netlify.app/?gate=YOUR_SECRET` once (if you set `VITE_ADMIN_GATE_SECRET`).
+3. Sign in with Supabase admin email + password.
+4. Upload as usual.
+
+## What hackers knew last time
+
+They did **not** need to “steal” your anon key. It is **public in every visitor’s browser** by design. The bug was **RLS allowed anonymous INSERT**. That is fixed.
+
+## Re-test after each deploy
+
+```javascript
+const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+const sb = createClient('YOUR_URL', 'YOUR_ANON_KEY');
+console.log(await sb.from('projects').insert({ name: 'test' }));
+console.log(await sb.storage.from('works').upload('x.txt', new Blob(['x'])));
+```
+
+Both must fail. Gallery `select` may still work (public read).

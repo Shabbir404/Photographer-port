@@ -79,7 +79,13 @@ export function AdminPanel({ works, onClose, onLogout, onRefresh }) {
         .from(BUCKET)
         .upload(fileName, compressed, { contentType: file.type });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        throw new Error(
+          uploadError.message?.includes("row-level security")
+            ? "Storage blocked by RLS. Run supabase/fix-rls-policies.sql in the SQL Editor, then log out and back in."
+            : uploadError.message
+        );
+      }
 
       // Get public URL
       const { data: urlData } = supabase.storage
@@ -96,7 +102,13 @@ export function AdminPanel({ works, onClose, onLogout, onRefresh }) {
         },
       ]);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        throw new Error(
+          dbError.message?.includes("row-level security")
+            ? "Database blocked by RLS. Run supabase/fix-rls-policies.sql in the SQL Editor, then log out and back in."
+            : dbError.message
+        );
+      }
 
       showToast("Work uploaded successfully!");
       setFile(null);

@@ -55,7 +55,7 @@ Go to [supabase.com](https://supabase.com) → New Project.
 
 1. **Authentication → Providers → Email** — turn **off** public sign-ups.
 2. **Authentication → Users** — create **one** admin user (your email + strong password).
-3. In **SQL Editor**, open `supabase/secure-setup.sql`, replace every `YOUR_ADMIN_EMAIL` with that user's email, and run the script.
+3. In **SQL Editor**, run `supabase/secure-setup.sql` (or `fix-rls-policies.sql` if upload fails with RLS errors).
 
 This enables a public read-only gallery; only your admin account can upload or delete.
 
@@ -113,9 +113,9 @@ Visit `http://localhost:5173`
 
 ## 🔐 Admin Panel Usage
 
-1. Go to the website footer and click the **Admin** button (shield icon)
-2. Sign in with your **Supabase admin email and password** (the user you created in the dashboard)
-3. Once logged in, the Admin Panel opens where you can:
+1. **Unlock admin UI:** click the footer copyright line **5 times** quickly, or visit `/?gate=YOUR_SECRET` if you set `VITE_ADMIN_GATE_SECRET`.
+2. Click **Sign in** and use your **Supabase admin email and password**.
+3. Once logged in, the panel opens where you can:
    - **Upload** photography works (JPG/JPEG/PNG, any size → auto-compressed to 1MB)
    - **Give each work** a name and optional description
    - **Delete** existing works (removes from storage + database)

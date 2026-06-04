@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Camera,
   Mail,
@@ -12,6 +12,11 @@ import { AdminLogin } from "./components/AdminLogin";
 import { AdminPanel } from "./components/AdminPanel";
 import { useWorks } from "./hooks/useWorks";
 import { supabase } from "./lib/supabase";
+import {
+  isAdminGateUnlocked,
+  unlockAdminGate,
+  tryUnlockFromUrl,
+} from "./lib/adminGate";
 
 const socialLinks = [
   { name: "Facebook", href: "https://www.facebook.com/100085352232946", mark: "F" },
@@ -33,8 +38,15 @@ function App() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminGateOpen, setAdminGateOpen] = useState(() => isAdminGateUnlocked());
+  const copyrightClicks = useRef({ count: 0, last: 0 });
 
   const { works, loading, error, refetch } = useWorks();
+
+  useEffect(() => {
+    tryUnlockFromUrl();
+    setAdminGateOpen(isAdminGateUnlocked());
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -62,6 +74,20 @@ function App() {
     setIsAdmin(false);
     setShowAdminPanel(false);
   };
+
+  const handleCopyrightClick = () => {
+    const now = Date.now();
+    if (now - copyrightClicks.current.last > 2500) copyrightClicks.current.count = 0;
+    copyrightClicks.current.last = now;
+    copyrightClicks.current.count += 1;
+    if (copyrightClicks.current.count >= 5) {
+      unlockAdminGate();
+      setAdminGateOpen(true);
+      copyrightClicks.current.count = 0;
+    }
+  };
+
+  const showAdminUi = adminGateOpen || isAdmin;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#080810] text-white">
@@ -319,23 +345,29 @@ function App() {
 
         {/* ── FOOTER ── */}
         <footer className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/6 pt-8 text-xs text-white/25 sm:flex-row">
-          <p>© {new Date().getFullYear()} Md Sowkot Noor. All rights reserved.</p>
+          <p
+            onClick={handleCopyrightClick}
+            className="select-none"
+            title=""
+          >
+            © {new Date().getFullYear()} Md Sowkot Noor. All rights reserved.
+          </p>
 
           <div className="flex items-center gap-6">
             <a href="#works" className="transition hover:text-white/50">Works</a>
             <a href="#contact" className="transition hover:text-white/50">Contact</a>
 
-            {/* Admin Button */}
-            <button
-              onClick={() =>
-                isAdmin ? setShowAdminPanel(true) : setShowAdminLogin(true)
-              }
-              className="group flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-white/30 backdrop-blur-sm transition hover:border-fuchsia-400/25 hover:bg-fuchsia-500/8 hover:text-fuchsia-300"
-              title="Admin Panel"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {isAdmin ? "Admin Panel" : "Admin"}
-            </button>
+            {showAdminUi && (
+              <button
+                onClick={() =>
+                  isAdmin ? setShowAdminPanel(true) : setShowAdminLogin(true)
+                }
+                className="group flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-white/30 backdrop-blur-sm transition hover:border-fuchsia-400/25 hover:bg-fuchsia-500/8 hover:text-fuchsia-300"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {isAdmin ? "Panel" : "Sign in"}
+              </button>
+            )}
           </div>
         </footer>
       </main>
