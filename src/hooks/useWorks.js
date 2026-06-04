@@ -11,7 +11,7 @@ export function useWorks() {
     setError(null);
     try {
       const { data, error: sbError } = await supabase
-        .from("justw")
+        .from("works")
         .select("*")
         .order("created_at", { ascending: false });
 
