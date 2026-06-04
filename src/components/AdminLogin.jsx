@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Key, X, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
 export function AdminLogin({ onSuccess, onClose }) {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -15,24 +16,31 @@ export function AdminLogin({ onSuccess, onClose }) {
     setLoading(true);
     setError("");
 
-    await new Promise((r) => setTimeout(r, 500));
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    const validUser = import.meta.env.VITE_ADMIN_USERNAME || "admin";
-    const validPass = import.meta.env.VITE_ADMIN_PASSWORD || "admin123";
+      if (authError) {
+        setError("Invalid credentials. Please try again.");
+        setShake(true);
+        setTimeout(() => setShake(false), 600);
+        return;
+      }
 
-    if (username === validUser && password === validPass) {
       onSuccess();
-    } else {
-      setError("Invalid credentials. Please try again.");
+    } catch {
+      setError("Could not sign in. Check your connection and try again.");
       setShake(true);
       setTimeout(() => setShake(false), 600);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -41,7 +49,6 @@ export function AdminLogin({ onSuccess, onClose }) {
         onClick={onClose}
       />
 
-      {/* Modal */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -51,7 +58,6 @@ export function AdminLogin({ onSuccess, onClose }) {
           shake ? "animate-shake" : ""
         }`}
       >
-        {/* Close */}
         <button
           onClick={onClose}
           className="absolute right-5 top-5 rounded-full p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
@@ -59,7 +65,6 @@ export function AdminLogin({ onSuccess, onClose }) {
           <X className="h-4 w-4" />
         </button>
 
-        {/* Icon */}
         <div className="mb-6 flex justify-center">
           <div className="relative">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-500/20 to-blue-500/20 shadow-lg shadow-fuchsia-500/10">
@@ -75,32 +80,31 @@ export function AdminLogin({ onSuccess, onClose }) {
           Admin Access
         </h2>
         <p className="mb-8 text-center text-sm text-white/40">
-          Enter your lock & key to manage your portfolio
+          Sign in with your Supabase admin account (only you have this login)
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Username */}
           <div>
             <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-white/40">
-              Lock (Username)
+              Admin email
             </label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="Enter username"
+                autoComplete="username"
+                placeholder="you@example.com"
                 className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-sm text-white placeholder-white/20 outline-none transition focus:border-fuchsia-500/50 focus:bg-white/8 focus:ring-2 focus:ring-fuchsia-500/20"
               />
             </div>
           </div>
 
-          {/* Password */}
           <div>
             <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-white/40">
-              Key (Password)
+              Password
             </label>
             <div className="relative">
               <Key className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
@@ -109,6 +113,7 @@ export function AdminLogin({ onSuccess, onClose }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
                 placeholder="Enter password"
                 className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-10 pr-12 text-sm text-white placeholder-white/20 outline-none transition focus:border-fuchsia-500/50 focus:bg-white/8 focus:ring-2 focus:ring-fuchsia-500/20"
               />
@@ -126,7 +131,6 @@ export function AdminLogin({ onSuccess, onClose }) {
             </div>
           </div>
 
-          {/* Error */}
           <AnimatePresence>
             {error && (
               <motion.p
@@ -140,7 +144,6 @@ export function AdminLogin({ onSuccess, onClose }) {
             )}
           </AnimatePresence>
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -151,7 +154,7 @@ export function AdminLogin({ onSuccess, onClose }) {
             ) : (
               <ShieldCheck className="h-4 w-4" />
             )}
-            {loading ? "Verifying..." : "Unlock Admin Panel"}
+            {loading ? "Signing in..." : "Unlock Admin Panel"}
           </button>
         </form>
       </motion.div>

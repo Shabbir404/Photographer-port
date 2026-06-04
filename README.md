@@ -51,39 +51,13 @@ npm install
 #### a) Create a Supabase project
 Go to [supabase.com](https://supabase.com) → New Project.
 
-#### b) Create the `works` table
+#### b) Secure database + storage (required)
 
-In **Supabase Dashboard → SQL Editor**, run:
+1. **Authentication → Providers → Email** — turn **off** public sign-ups.
+2. **Authentication → Users** — create **one** admin user (your email + strong password).
+3. In **SQL Editor**, open `supabase/secure-setup.sql`, replace every `YOUR_ADMIN_EMAIL` with that user's email, and run the script.
 
-```sql
--- Create works table
-CREATE TABLE works (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  name text NOT NULL,
-  description text,
-  image_url text NOT NULL,
-  file_name text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
--- Enable Row Level Security
-ALTER TABLE works ENABLE ROW LEVEL SECURITY;
-
--- Allow anyone to read works (public gallery)
-CREATE POLICY "Public can read works"
-  ON works FOR SELECT
-  USING (true);
-
--- Allow anonymous inserts (admin uses anon key)
-CREATE POLICY "Allow insert"
-  ON works FOR INSERT
-  WITH CHECK (true);
-
--- Allow anonymous deletes
-CREATE POLICY "Allow delete"
-  ON works FOR DELETE
-  USING (true);
-```
+This enables a public read-only gallery; only your admin account can upload or delete.
 
 #### c) Create the `works` Storage Bucket
 
@@ -93,24 +67,7 @@ In **Supabase Dashboard → Storage**:
 3. Make it **Public**
 4. Click **Create**
 
-Then add Storage policies. Go to **Storage → Policies → works bucket**:
-
-```sql
--- Allow public to view files
-CREATE POLICY "Public read"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'works');
-
--- Allow upload
-CREATE POLICY "Allow upload"
-  ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'works');
-
--- Allow delete
-CREATE POLICY "Allow delete"
-  ON storage.objects FOR DELETE
-  USING (bucket_id = 'works');
-```
+Storage policies are included in `secure-setup.sql` (run after creating the bucket).
 
 #### d) Get your API keys
 
@@ -129,14 +86,11 @@ cp .env.example .env
 Edit `.env`:
 
 ```env
-# Supabase
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
-
-# Admin credentials (lock = username, key = password)
-VITE_ADMIN_USERNAME=admin
-VITE_ADMIN_PASSWORD=your-secure-password-here
 ```
+
+Admin password is **not** stored in `.env`. Use the Supabase Auth user you created in step 3b.
 
 > ⚠️ **Never commit your `.env` file.** It is already in `.gitignore`.
 
@@ -160,7 +114,7 @@ Visit `http://localhost:5173`
 ## 🔐 Admin Panel Usage
 
 1. Go to the website footer and click the **Admin** button (shield icon)
-2. Enter your **Lock** (username) and **Key** (password) from `.env`
+2. Sign in with your **Supabase admin email and password** (the user you created in the dashboard)
 3. Once logged in, the Admin Panel opens where you can:
    - **Upload** photography works (JPG/JPEG/PNG, any size → auto-compressed to 1MB)
    - **Give each work** a name and optional description
@@ -232,7 +186,7 @@ Output goes to `dist/`. Deploy to **Vercel**, **Netlify**, or any static host.
 | Social links | `src/App.jsx` → `socialLinks` array |
 | Hero portrait | `public/photographer.jpg` |
 | Site title & meta | `index.html` |
-| Admin credentials | `.env` → `VITE_ADMIN_USERNAME` / `VITE_ADMIN_PASSWORD` |
+| Admin account | Supabase Dashboard → Authentication → Users |
 
 ---
 
@@ -240,8 +194,9 @@ Output goes to `dist/`. Deploy to **Vercel**, **Netlify**, or any static host.
 
 - Images are compressed client-side to **≤1MB** before uploading — no server needed
 - Supported formats: **JPG, JPEG, PNG** only
-- The admin session is **in-memory only** — logging out or refreshing the page requires re-login
-- This uses the Supabase **anon key** with RLS policies — suitable for personal portfolios. For production with sensitive data, use Supabase Auth instead.
+- Admin session uses **Supabase Auth** (stored in `sessionStorage` for this tab)
+- Public visitors only get the **anon key**; RLS blocks writes without a valid admin JWT
+- See **SECURITY.md** if you were compromised or used the old open INSERT/DELETE policies
 
 ---
 

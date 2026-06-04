@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Camera,
   Mail,
@@ -11,6 +11,7 @@ import {
 import { AdminLogin } from "./components/AdminLogin";
 import { AdminPanel } from "./components/AdminPanel";
 import { useWorks } from "./hooks/useWorks";
+import { supabase } from "./lib/supabase";
 
 const socialLinks = [
   { name: "Facebook", href: "https://www.facebook.com/100085352232946", mark: "F" },
@@ -35,13 +36,29 @@ function App() {
 
   const { works, loading, error, refetch } = useWorks();
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAdmin(!!session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAdmin(!!session);
+      if (!session) setShowAdminPanel(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const handleAdminSuccess = () => {
     setIsAdmin(true);
     setShowAdminLogin(false);
     setShowAdminPanel(true);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setIsAdmin(false);
     setShowAdminPanel(false);
   };

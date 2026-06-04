@@ -5,11 +5,20 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
-    "Supabase credentials not found. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file."
+    "Supabase credentials not found. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env"
   );
 }
 
+/** Public anon client only. Writes require a real Supabase Auth session + RLS. */
 export const supabase = createClient(
   supabaseUrl || "https://placeholder.supabase.co",
-  supabaseAnonKey || "placeholder"
+  supabaseAnonKey || "placeholder",
+  {
+    auth: {
+      persistSession: true,
+      storage: sessionStorage,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+    },
+  }
 );

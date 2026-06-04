@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import { supabase } from "../lib/supabase";
+import { requireAdminSession } from "../lib/adminSession";
 
 const ACCEPTED = ["image/jpeg", "image/jpg", "image/png"];
 const BUCKET = "works";
@@ -60,6 +61,8 @@ export function AdminPanel({ works, onClose, onLogout, onRefresh }) {
 
     setUploading(true);
     try {
+      await requireAdminSession();
+
       // Compress to max 1MB
       const compressed = await imageCompression(file, {
         maxSizeMB: 1,
@@ -84,7 +87,7 @@ export function AdminPanel({ works, onClose, onLogout, onRefresh }) {
         .getPublicUrl(fileName);
 
       // Save to DB
-      const { error: dbError } = await supabase.from("works").insert([
+      const { error: dbError } = await supabase.from("projects").insert([
         {
           name: form.name.trim(),
           description: form.description.trim() || null,
@@ -101,7 +104,9 @@ export function AdminPanel({ works, onClose, onLogout, onRefresh }) {
       setForm({ name: "", description: "" });
       onRefresh();
     } catch (err) {
-      showToast(err.message || "Upload failed. Check Supabase config.", "error");
+      const msg = err.message || "Upload failed.";
+      showToast(msg, "error");
+      if (msg.includes("Not authenticated")) onLogout();
     } finally {
       setUploading(false);
     }
@@ -111,17 +116,20 @@ export function AdminPanel({ works, onClose, onLogout, onRefresh }) {
     if (!confirm(`Delete "${work.name}"? This cannot be undone.`)) return;
     setDeleting(work.id);
     try {
+      await requireAdminSession();
       // Delete from storage
       if (work.file_name) {
         await supabase.storage.from(BUCKET).remove([work.file_name]);
       }
       // Delete from DB
-      const { error } = await supabase.from("works").delete().eq("id", work.id);
+      const { error } = await supabase.from("projects").delete().eq("id", work.id);
       if (error) throw error;
       showToast("Work deleted.");
       onRefresh();
     } catch (err) {
-      showToast(err.message || "Delete failed.", "error");
+      const msg = err.message || "Delete failed.";
+      showToast(msg, "error");
+      if (msg.includes("Not authenticated")) onLogout();
     } finally {
       setDeleting(null);
     }
@@ -183,13 +191,12 @@ export function AdminPanel({ works, onClose, onLogout, onRefresh }) {
 
             {/* Drop Zone */}
             <div
-              className={`relative mb-4 cursor-pointer rounded-2xl border-2 border-dashed transition-all ${
-                dragOver
-                  ? "border-fuchsia-400/60 bg-fuchsia-500/10"
-                  : preview
+              className={`relative mb-4 cursor-pointer rounded-2xl border-2 border-dashed transition-all ${dragOver
+                ? "border-fuchsia-400/60 bg-fuchsia-500/10"
+                : preview
                   ? "border-white/20 bg-white/5"
                   : "border-white/15 bg-white/3 hover:border-fuchsia-400/40 hover:bg-white/5"
-              }`}
+                }`}
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -346,11 +353,10 @@ export function AdminPanel({ works, onClose, onLogout, onRefresh }) {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className={`fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 flex items-center gap-2.5 rounded-2xl border px-5 py-3 text-sm font-medium shadow-2xl backdrop-blur-xl ${
-              toast.type === "error"
-                ? "border-red-500/30 bg-red-950/80 text-red-200"
-                : "border-fuchsia-500/30 bg-fuchsia-950/80 text-fuchsia-200"
-            }`}
+            className={`fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 flex items-center gap-2.5 rounded-2xl border px-5 py-3 text-sm font-medium shadow-2xl backdrop-blur-xl ${toast.type === "error"
+              ? "border-red-500/30 bg-red-950/80 text-red-200"
+              : "border-fuchsia-500/30 bg-fuchsia-950/80 text-fuchsia-200"
+              }`}
           >
             {toast.type === "error" ? (
               <AlertCircle className="h-4 w-4" />
